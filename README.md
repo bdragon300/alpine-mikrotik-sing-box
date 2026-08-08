@@ -49,5 +49,5 @@ To build an image for a specific version of sing-box, run:
 Script will build an image `alpine-mikrotik-sing-box-1.13.16-arm64-musl.tar` in current directory. Upload it to your Mikrotik and create a container:
 
 ```
-/container add dns=8.8.8.8,8.8.4.4 file=alpine-mikrotik-sing-box-1.13.16-arm64-musl.tar interface=veth-sb layer-dir="" name=sing-box-client root-dir=/containers/sb shm-size=128.0MiB
+/container add file=alpine-mikrotik-sing-box-1.13.16-arm64-musl.tar name=sing-box-client interface=veth-vless root-dir=/containers/vless mountlists=VLESS start-on-boot=yes logging=no dns=8.8.8.8,8.8.4.4
 ```
