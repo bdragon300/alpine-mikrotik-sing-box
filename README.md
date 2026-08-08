@@ -1,6 +1,6 @@
 # alpine-mikrotik-sing-box
 
-Just plain Apline Docker image with compressed [sing-box](https://sing-box.sagernet.org/) executable inside and nothing else. Meant for [Mikrotik](https://mikrotik.com) devices. Image size is about 32Mb.
+Just plain Apline Docker image with compressed [sing-box](https://sing-box.sagernet.org/) executable inside and nothing else. Meant for [Mikrotik](https://mikrotik.com) devices.
 
 ## Usage
 

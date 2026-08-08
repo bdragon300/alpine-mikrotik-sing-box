@@ -30,7 +30,7 @@ Options:
   -v VERSION
         sing-box version to use. Default is the latest version
   -a ARCH
-        sing-box release machine architecture to use. Possible values are: "arm64", "armv5", "armv6", "armv7", "386", "amd64". Default is "$ARCH"
+        sing-box release machine architecture to use. Possible values are: "arm64", "armv6", "armv7", "386", "amd64". Default is "$ARCH"
   -V VARIANT
         sing-box release variant to use. Possible values are: "glibc", "musl" and "". Default is "$VARIANT"
   -p DOCKER_PLATFORM
@@ -58,6 +58,10 @@ EOF
 done
 
 SINGBOX_FILENAME_REGEX="sing-box-[0-9.]+-linux-${ARCH}-${VARIANT}.tar.gz"
+if [ -z "$VARIANT" ]; then
+    SINGBOX_FILENAME_REGEX="sing-box-[0-9.]+-linux-${ARCH}.tar.gz"
+fi
+
 GH_API_URL="https://api.github.com/repos/SagerNet/sing-box/releases"
 
 if [ -n "$LATEST_VERSION" ]; then
@@ -67,9 +71,9 @@ fi
 
 echo -n "Docker platform: "
 if [ -z "$DOCKER_PLATFORM" ]; then
+    # Platforms supported *both* by Alpine and sing-box
     case "$ARCH" in
         arm64) DOCKER_PLATFORM=linux/arm64/v8 ;;
-        armv5) DOCKER_PLATFORM=linux/arm/v5 ;;
         armv6) DOCKER_PLATFORM=linux/arm/v6 ;;
         armv7) DOCKER_PLATFORM=linux/arm/v7 ;;
         386) DOCKER_PLATFORM=linux/386 ;;
@@ -94,7 +98,7 @@ fi
 echo "Requesting $GH_API_URL"
 URL=$(curl -fsS "$GH_API_URL" | jq -r "first(.assets[] | select(.name | test(\"${SINGBOX_FILENAME_REGEX}\")) | .browser_download_url)")
 if [ -z "$URL" ]; then
-    echo "$VERSION/$ARCH/$VARIANT file not found in sing-box releases" >&2
+    echo "Sing-box release ${VERSION:-latest_version}/$ARCH/$VARIANT not found" >&2
     exit 1
 fi
 
@@ -110,7 +114,7 @@ ARCHIVEDIR="${BUILDDIR}/sing-box-${VERSION}-${ARCH}-${VARIANT}"
 [ ! -d "$ARCHIVEDIR" ] && mkdir -p "$ARCHIVEDIR"
 tar xvf "$BUILDDIR/$SINGBOX_FILENAME" -C "$ARCHIVEDIR" --strip-components=1
 
-echo "Preparing the building..."
+echo "Preparing build root..."
 gzip -1 -c "${ARCHIVEDIR}/sing-box" > "${BUILDDIR}/sing-box.gz"
 cp $DOCKERDIR/* "$BUILDDIR"
 
@@ -123,7 +127,7 @@ if [ -n "$DOCKER_TAG" ]; then
 fi
 if [ -n "$OUTDIR" ]; then
     TARFILE="${TARFILE_PREFIX}-${VERSION}-${ARCH}-${VARIANT}.tar"
-    echo "Saving image ${DOCKER_IMAGE}:${VERSION} into $TARFILE..."
+    echo "Exporting image ${DOCKER_IMAGE}:${VERSION} to $TARFILE..."
     docker image save -o "$TARFILE" ${DOCKER_IMAGE}:${VERSION}
 fi
 if [ -n "$CLEAN" ]; then
