@@ -27,25 +27,27 @@ while getopts ":v:a:V:p:t:O:B:cLh" flag; do
 Usage: $0 [-v VERSION] [-a ARCH] [-V VARIANT] [-p DOCKER_PLATFORM] [-t DOCKER_TAG] [-O OUTDIR] [-B BUILDDIR] [-c] [-L] [-h]
 Download a sing-box release and build a Docker image
 
+Actions:
+  -L
+        print the latest sing-box available version and exit
+
 Options:
   -v VERSION
         sing-box version to use. Default is the latest version
   -a ARCH
-        sing-box release machine architecture to use. Possible values are: "arm64", "armv6", "armv7", "386", "amd64". Default is "$ARCH"
+        sing-box CPU architecture to use. Possible values are: "arm64", "armv6", "armv7", "386", "amd64". Default is "$ARCH"
   -V VARIANT
-        sing-box release variant to use. Possible values are: "glibc", "musl" and "". Default is "$VARIANT"
+        sing-box release variant to use. Possible values are: "glibc", "musl" and "" (empty). Default is "$VARIANT"
   -p DOCKER_PLATFORM
-        target Docker platform (machine architecture). By default, depends on sing-box architecture.
+        target Docker platform. By default, depends on sing-box architecture.
   -t DOCKER_TAG
-        additionally tag the Docker image
+        add additional tag to the Docker image
   -O OUTDIR
-        additionally save an image into as tar file into specified directory
+        save Docker image to a tar file in specified directory
   -B BUILDDIR
-        temporary build directory. Default is "$BUILDDIR"
+        build directory. Default is "$BUILDDIR"
   -c
-        clean after build
-  -L
-        print the latest sing-box release version and exit
+        remove the build directory when finished
   -h
         display this help
 EOF
@@ -102,7 +104,7 @@ if [ -z "$URL" ]; then
 fi
 
 [ -z "$VERSION" ] && VERSION=$(echo $URL | grep -Po "(?<=sing-box-)[0-9.]+")
-echo "Sing-box release: version=${VERSION:-latest}, arch=$ARCH, variant=${VARIANT:-empty}"
+echo "Sing-box release: version=$VERSION, arch=$ARCH, variant=$VARIANT"
 
 echo "Downloading archive $URL..."
 SINGBOX_FILENAME=$(basename "$URL")
@@ -130,7 +132,7 @@ if [ -n "$OUTDIR" ]; then
     docker image save -o "$TARFILE" ${DOCKER_IMAGE}:${VERSION}
 fi
 if [ -n "$CLEAN" ]; then
-    echo "Cleaning up $BUILDDIR"
+    echo "Remove $BUILDDIR"
     rm -r "$BUILDDIR"
 fi
 
