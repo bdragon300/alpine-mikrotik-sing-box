@@ -4,6 +4,7 @@ set -eo pipefail
 
 BUILDDIR=./build
 DOCKERDIR=./docker
+GH_RELEASES_URL="https://api.github.com/repos/SagerNet/sing-box/releases"
 
 DOCKER_IMAGE=falconerity/alpine-mikrotik-sing-box
 TARFILE_PREFIX="alpine-mikrotik-sing-box"
@@ -62,10 +63,8 @@ if [ -z "$VARIANT" ]; then
     SINGBOX_FILENAME_REGEX="sing-box-[0-9.]+-linux-${ARCH}.tar.gz"
 fi
 
-GH_API_URL="https://api.github.com/repos/SagerNet/sing-box/releases"
-
 if [ -n "$LATEST_VERSION" ]; then
-    curl -fsS "$GH_API_URL/latest" | jq -r "first(.assets[] | select(.name | test(\"${SINGBOX_FILENAME_REGEX}\")) | .browser_download_url)" | grep -Po "(?<=sing-box-)[0-9.]+"
+    curl -fsSL "$GH_RELEASES_URL/latest" | jq -r "first(.assets[] | select(.name | test(\"${SINGBOX_FILENAME_REGEX}\")) | .browser_download_url)" | grep -Po "(?<=sing-box-)[0-9.]+"
     exit 0
 fi
 
@@ -90,24 +89,24 @@ echo "Build dir: $BUILDDIR"
 [ ! -d "$BUILDDIR" ] && mkdir -p "$BUILDDIR"
 
 if [ -n "$VERSION" ]; then
-    GH_API_URL="$GH_API_URL/tags/v$VERSION"
+    GH_RELEASES_URL="$GH_RELEASES_URL/tags/v$VERSION"
 else
-    GH_API_URL="$GH_API_URL/latest"
+    GH_RELEASES_URL="$GH_RELEASES_URL/latest"
 fi
 
-echo "Requesting $GH_API_URL"
-URL=$(curl -fsS "$GH_API_URL" | jq -r "first(.assets[] | select(.name | test(\"${SINGBOX_FILENAME_REGEX}\")) | .browser_download_url)")
+echo "Requesting $GH_RELEASES_URL"
+URL=$(curl -fsSL "$GH_RELEASES_URL" | jq -r "first(.assets[] | select(.name | test(\"${SINGBOX_FILENAME_REGEX}\")) | .browser_download_url)")
 if [ -z "$URL" ]; then
-    echo "Sing-box release ${VERSION:-latest_version}/$ARCH/$VARIANT not found" >&2
+    echo "Sing-box release not found: version=${VERSION:-latest}, arch=$ARCH, variant=${VARIANT:-empty}" >&2
     exit 1
 fi
 
 [ -z "$VERSION" ] && VERSION=$(echo $URL | grep -Po "(?<=sing-box-)[0-9.]+")
-echo "Sing-box release: $VERSION/$ARCH/$VARIANT"
+echo "Sing-box release: version=${VERSION:-latest}, arch=$ARCH, variant=${VARIANT:-empty}"
 
 echo "Downloading archive $URL..."
 SINGBOX_FILENAME=$(basename "$URL")
-curl -Lo "$BUILDDIR/$SINGBOX_FILENAME" "$URL"
+curl -fSL -o "$BUILDDIR/$SINGBOX_FILENAME" "$URL"
 
 echo "Extracting archive..."
 ARCHIVEDIR="${BUILDDIR}/sing-box-${VERSION}-${ARCH}-${VARIANT}"
