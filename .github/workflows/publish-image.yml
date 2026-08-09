@@ -86,7 +86,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       # The Dockerfile only COPYs files (no RUN), but QEMU is set up so
       # foreign-architecture base images build reliably under buildx.
