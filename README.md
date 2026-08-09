@@ -2,15 +2,15 @@
 
 [![Docker Image Version](https://img.shields.io/docker/v/falconerity/alpine-mikrotik-sing-box?sort=semver&logo=docker&label=DockerHub)](https://hub.docker.com/r/falconerity/alpine-mikrotik-sing-box)
 
-A plain Alpine Docker image with a compressed [sing-box](https://sing-box.sagernet.org/) executable inside and nothing else. Intended for [MikroTik](https://mikrotik.com) devices. Optimized for low disk usage on the router at the cost of RAM.
+A plain Alpine Docker image with a compressed [sing-box](https://sing-box.sagernet.org/) executable inside and nothing else. Intended for MikroTik devices running [RouterOS](https://mikrotik.com/software). Optimized for low disk usage on the router at the cost of RAM.
 
-A new image version is built automatically for each stable sing-box release.
+Images are automatically kept up to date with the latest stable sing-box release.
 
 ## Usage
 
 ### Prerequisites
 
-First, check that your MikroTik device can run containers — its CPU architecture must be ARM32 (ARMv7), ARM64, or x86. See the [products page](https://mikrotik.com/products/matrix).
+First, check that your Mikrotik device can run containers — its CPU architecture must be ARM32 (ARMv7), ARM64, or x86. See the [products page](https://mikrotik.com/products/matrix).
 
 Also, make sure the container [package](https://mikrotik.com/download/routeros) is installed and containers are enabled (the device may ask for a physical button press or a reboot to confirm):
 
@@ -50,7 +50,7 @@ To build an image for a specific version of sing-box targeting the `armv7` archi
 ./build.sh -v 1.13.16 -a armv7 -O .
 ```
 
-The script builds the image and saves it to `alpine-mikrotik-sing-box-1.13.16-armv7-musl.tar` in the current directory. Upload it to your MikroTik device and create a container:
+The script builds the image and saves it to `alpine-mikrotik-sing-box-1.13.16-armv7-musl.tar` in the current directory. Upload it to your Mikrotik and create a container:
 
 ```routeros
 /container add file=alpine-mikrotik-sing-box-1.13.16-armv7-musl.tar name=sing-box-client interface=veth-vless root-dir=/containers/vless mountlists=VLESS start-on-boot=yes logging=no dns=8.8.8.8,8.8.4.4
