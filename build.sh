@@ -24,7 +24,8 @@ while getopts ":v:a:V:p:t:O:B:cLh" flag; do
         L) LATEST_VERSION=1 ;;
         h) 
             cat <<EOF
-Usage: $0 [-v VERSION] [-a ARCH] [-V VARIANT] [-p DOCKER_PLATFORM] [-t DOCKER_TAG] [-O OUTDIR] [-B BUILDDIR] [-c] [-L] [-h]
+Usage: $0 [-v VERSION] [-a ARCH] [-V VARIANT] [-p DOCKER_PLATFORM] [-t DOCKER_TAG] [-O OUTDIR] [-B BUILDDIR] [-c] [-h]
+   or: $0 -L
 Download a sing-box release and build a Docker image
 
 Actions:
