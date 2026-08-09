@@ -4,7 +4,7 @@
 
 A plain Alpine Docker image with a compressed [sing-box](https://sing-box.sagernet.org/) executable inside and nothing else. Intended for [MikroTik](https://mikrotik.com) devices. Optimized for low disk usage on the router at the cost of RAM.
 
-The image is rebuilt automatically for each new stable sing-box release.
+A new image version is built automatically for each stable sing-box release.
 
 ## Usage
 
