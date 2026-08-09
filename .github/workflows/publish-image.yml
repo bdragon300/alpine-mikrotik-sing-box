@@ -34,7 +34,7 @@ jobs:
     steps:
       - name: Determine target version and whether to build
         id: check
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const inputVersion = (context.payload.inputs && context.payload.inputs.version || '').trim();
