@@ -1,0 +1,121 @@
+name: Publish sing-box image
+
+# Periodically checks SagerNet/sing-box for a new *stable* release and, when
+# one is found, builds a Docker image with build.sh and pushes it to Docker Hub.
+#
+# The GitHub "latest release" API returns the most recent published release that
+# is neither a draft nor a pre-release, so sing-box alpha/beta releases are
+# automatically ignored.
+
+on:
+  schedule:
+    # Every day at 06:00 UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'sing-box version to build (leave empty to use the latest stable release)'
+        required: false
+        default: ''
+      force:
+        description: 'Build and push even if the image tag already exists on Docker Hub'
+        type: boolean
+        default: false
+
+env:
+  DOCKER_IMAGE: falconerity/alpine-mikrotik-sing-box
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+      should_build: ${{ steps.check.outputs.should_build }}
+    steps:
+      - name: Determine target version and whether to build
+        id: check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const inputVersion = (context.payload.inputs && context.payload.inputs.version || '').trim();
+            const force = context.payload.inputs && context.payload.inputs.force === 'true';
+
+            // Resolve the version to build.
+            let version;
+            if (inputVersion) {
+              version = inputVersion.replace(/^v/, '');
+              core.info(`Using manually requested version: ${version}`);
+            } else {
+              // getLatestRelease excludes drafts and pre-releases (alpha/beta).
+              const { data: release } = await github.rest.repos.getLatestRelease({
+                owner: 'SagerNet',
+                repo: 'sing-box',
+              });
+              version = release.tag_name.replace(/^v/, '');
+              core.info(`Latest stable sing-box release: ${version} (${release.tag_name})`);
+            }
+
+            if (!version) {
+              core.setFailed('Could not determine a version to build');
+              return;
+            }
+            core.setOutput('version', version);
+
+            if (force) {
+              core.info('Force build requested');
+              core.setOutput('should_build', 'true');
+              return;
+            }
+
+            // Skip the build if this tag already exists on Docker Hub.
+            const image = process.env.DOCKER_IMAGE;
+            const resp = await fetch(
+              `https://hub.docker.com/v2/repositories/${image}/tags/${version}`
+            );
+            if (resp.status === 200) {
+              core.info(`Image ${image}:${version} already exists on Docker Hub, nothing to do`);
+              core.setOutput('should_build', 'false');
+            } else {
+              core.info(`Image ${image}:${version} not found (HTTP ${resp.status}), will build`);
+              core.setOutput('should_build', 'true');
+            }
+
+  build:
+    needs: check
+    if: needs.check.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # The Dockerfile only COPYs files (no RUN), but QEMU is set up so
+      # foreign-architecture base images build reliably under buildx.
+      # Register only the platforms build.sh can target (arm64, armv7, armv6,
+      # 386, amd64); amd64 is native to the runner but listed for completeness.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: linux/amd64,linux/386,linux/arm64,linux/arm/v7,linux/arm/v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          logout: true
+
+      - name: Build image
+        env:
+          VERSION: ${{ needs.check.outputs.version }}
+        run: ./build.sh -v "${VERSION}" -t latest
+
+      - name: Push image
+        env:
+          VERSION: ${{ needs.check.outputs.version }}
+        run: |
+          set -euo pipefail
+          docker push "${DOCKER_IMAGE}:${VERSION}"
+          docker push "${DOCKER_IMAGE}:latest"
