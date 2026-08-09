@@ -1,4 +1,4 @@
-name: Publish sing-box image
+name: Publish an image on new sing-box release
 
 # Periodically checks SagerNet/sing-box for a new *stable* release and, when
 # one is found, builds Docker images with build.sh (one per architecture) and

@@ -106,7 +106,7 @@ fi
 [ -z "$DOCKER_TAG" ] && DOCKER_TAG=$VERSION
 echo "Sing-box release: version=$VERSION, arch=$ARCH, variant=$VARIANT"
 
-echo "Downloading archive $URL..."
+echo "Downloading archive $URL ..."
 SINGBOX_FILENAME=$(basename "$URL")
 curl -fSL -o "$BUILDDIR/$SINGBOX_FILENAME" "$URL"
 
@@ -119,13 +119,13 @@ echo "Preparing build root..."
 gzip -1 -c "${ARCHIVEDIR}/sing-box" > "${BUILDDIR}/sing-box.gz"
 cp $DOCKERDIR/* "$BUILDDIR"
 
-echo "Building ${DOCKER_IMAGE}:${DOCKER_TAG}..."
+echo "Building ${DOCKER_IMAGE}:${DOCKER_TAG} ..."
 docker buildx build -f $BUILDDIR/Dockerfile --no-cache --progress=plain --platform $DOCKER_PLATFORM --output=type=docker --tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${BUILDDIR}/
 
 
 if [ -n "$OUTDIR" ]; then
     TARFILE="${TARFILE_PREFIX}-${DOCKER_TAG}-${ARCH}-${VARIANT}.tar"
-    echo "Exporting image ${DOCKER_IMAGE}:${DOCKER_TAG} to $TARFILE..."
+    echo "Exporting image ${DOCKER_IMAGE}:${DOCKER_TAG} to $TARFILE ..."
     docker image save -o "$TARFILE" ${DOCKER_IMAGE}:${DOCKER_TAG}
 fi
 if [ -n "$CLEAN" ]; then
