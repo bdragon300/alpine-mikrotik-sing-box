@@ -1,6 +1,6 @@
 # alpine-mikrotik-sing-box
 
-[![Docker Image Version](https://img.shields.io/docker/v/falconerity/alpine-mikrotik-sing-box?sort=semver)](https://hub.docker.com/r/falconerity/alpine-mikrotik-sing-box)
+[![Docker Image Version](https://img.shields.io/docker/v/falconerity/alpine-mikrotik-sing-box?sort=semver&logo=docker&label=DockerHub)](https://hub.docker.com/r/falconerity/alpine-mikrotik-sing-box)
 
 A plain Alpine Docker image with a compressed [sing-box](https://sing-box.sagernet.org/) executable inside and nothing else. Intended for [MikroTik](https://mikrotik.com) devices. Optimized for low disk usage on the router at the cost of RAM.
 
