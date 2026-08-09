@@ -1,11 +1,16 @@
 name: Publish sing-box image
 
 # Periodically checks SagerNet/sing-box for a new *stable* release and, when
-# one is found, builds a Docker image with build.sh and pushes it to Docker Hub.
+# one is found, builds Docker images with build.sh (one per architecture) and
+# pushes them to Docker Hub as a multi-arch image.
 #
 # The GitHub "latest release" API returns the most recent published release that
 # is neither a draft nor a pre-release, so sing-box alpha/beta releases are
 # automatically ignored.
+#
+# Published tags:
+#   <version>, latest              multi-arch manifest lists
+#   <version>-<arch>               single-arch images the lists are built from
 
 on:
   schedule:
@@ -31,6 +36,7 @@ jobs:
     outputs:
       version: ${{ steps.check.outputs.version }}
       should_build: ${{ steps.check.outputs.should_build }}
+      matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
       - name: Determine target version and whether to build
         id: check
@@ -80,22 +86,38 @@ jobs:
               core.setOutput('should_build', 'true');
             }
 
+      # Single source of truth for the architectures to build: consumed as the
+      # build job's matrix and, in the manifest job, as the list of per-arch
+      # tags to combine. "arch" values are the ones build.sh accepts (-a); the
+      # platforms are the matching Docker platforms (see build.sh).
+      - name: Define the build matrix
+        id: matrix
+        run: |
+          set -euo pipefail
+          cat >> "$GITHUB_OUTPUT" <<'EOF'
+          matrix={"include":[{"arch":"amd64","platform":"linux/amd64"},{"arch":"arm64","platform":"linux/arm64/v8"},{"arch":"armv7","platform":"linux/arm/v7"}]}
+          EOF
+
   build:
     needs: check
     if: needs.check.outputs.should_build == 'true'
     runs-on: ubuntu-latest
+    strategy:
+      # Build every architecture even if one fails, so a single broken arch
+      # shows up as one red job instead of masking the others. The manifest
+      # job only runs when all of them succeed.
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.check.outputs.matrix) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
       # The Dockerfile only COPYs files (no RUN), but QEMU is set up so
       # foreign-architecture base images build reliably under buildx.
-      # Register only the platforms build.sh can target (arm64, armv7, armv6,
-      # 386, amd64); amd64 is native to the runner but listed for completeness.
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
         with:
-          platforms: linux/amd64,linux/386,linux/arm64,linux/arm/v7,linux/arm/v6
+          platforms: ${{ matrix.platform }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -107,15 +129,53 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           logout: true
 
-      - name: Build image
+      # build.sh loads a single-platform image into the local daemon, so each
+      # architecture is built and pushed under its own tag; the manifest job
+      # then combines them into the version/latest tags.
+      - name: Build image for ${{ matrix.arch }}
         env:
           VERSION: ${{ needs.check.outputs.version }}
-        run: ./build.sh -v "${VERSION}" -t latest
+          ARCH: ${{ matrix.arch }}
+          PLATFORM: ${{ matrix.platform }}
+        run: ./build.sh -v "${VERSION}" -a "${ARCH}" -p "${PLATFORM}" -t "${VERSION}-${ARCH}"
 
-      - name: Push image
+      - name: Push image for ${{ matrix.arch }}
         env:
           VERSION: ${{ needs.check.outputs.version }}
+          ARCH: ${{ matrix.arch }}
         run: |
           set -euo pipefail
-          docker push "${DOCKER_IMAGE}:${VERSION}"
-          docker push "${DOCKER_IMAGE}:latest"
+          docker push "${DOCKER_IMAGE}:${VERSION}-${ARCH}"
+
+  manifest:
+    needs: [check, build]
+    if: needs.check.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          logout: true
+
+      # A manifest list lets clients (including RouterOS) pull the image that
+      # matches their own architecture from a single tag.
+      - name: Create and push multi-arch tags
+        env:
+          VERSION: ${{ needs.check.outputs.version }}
+          MATRIX: ${{ needs.check.outputs.matrix }}
+        run: |
+          set -euo pipefail
+          sources=()
+          while read -r arch; do
+            sources+=("${DOCKER_IMAGE}:${VERSION}-${arch}")
+          done < <(jq -r '.include[].arch' <<<"$MATRIX")
+
+          echo "Combining ${sources[*]}"
+          docker buildx imagetools create \
+            --tag "${DOCKER_IMAGE}:${VERSION}" \
+            --tag "${DOCKER_IMAGE}:latest" \
+            "${sources[@]}"
+
+          docker buildx imagetools inspect "${DOCKER_IMAGE}:${VERSION}"

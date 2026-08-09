@@ -36,13 +36,13 @@ Options:
   -v VERSION
         sing-box version to use. Default is the latest version
   -a ARCH
-        sing-box CPU architecture to use. Possible values are: "arm64", "armv6", "armv7", "386", "amd64". Default is "$ARCH"
+        sing-box CPU architecture to use. Possible values are: "arm64", "armv7", "amd64". Default is "$ARCH"
   -V VARIANT
         sing-box release variant to use. Possible values are: "glibc", "musl" and "" (empty). Default is "$VARIANT"
   -p DOCKER_PLATFORM
         target Docker platform. By default, depends on sing-box architecture.
   -t DOCKER_TAG
-        add additional tag to the Docker image
+        build a Docker image with given tag. Default is equal to sing-box version
   -O OUTDIR
         save Docker image to a tar file in specified directory
   -B BUILDDIR
@@ -76,9 +76,7 @@ if [ -z "$DOCKER_PLATFORM" ]; then
     # Platforms supported *both* by Alpine and sing-box
     case "$ARCH" in
         arm64) DOCKER_PLATFORM=linux/arm64/v8 ;;
-        armv6) DOCKER_PLATFORM=linux/arm/v6 ;;
         armv7) DOCKER_PLATFORM=linux/arm/v7 ;;
-        386) DOCKER_PLATFORM=linux/386 ;;
         amd64) DOCKER_PLATFORM=linux/amd64 ;;
         *)
             echo "cannot determine for architecture $ARCH. Check if the architecture is correct or set the platform manually in -p option. See -h for help"
@@ -105,6 +103,7 @@ if [ -z "$URL" ]; then
 fi
 
 [ -z "$VERSION" ] && VERSION=$(echo $URL | grep -Po "(?<=sing-box-)[0-9.]+")
+[ -z "$DOCKER_TAG" ] && DOCKER_TAG=$VERSION
 echo "Sing-box release: version=$VERSION, arch=$ARCH, variant=$VARIANT"
 
 echo "Downloading archive $URL..."
@@ -120,17 +119,14 @@ echo "Preparing build root..."
 gzip -1 -c "${ARCHIVEDIR}/sing-box" > "${BUILDDIR}/sing-box.gz"
 cp $DOCKERDIR/* "$BUILDDIR"
 
-echo "Building ${DOCKER_IMAGE}:${VERSION}..."
-docker buildx build -f $BUILDDIR/Dockerfile --no-cache --progress=plain --platform $DOCKER_PLATFORM --output=type=docker --tag ${DOCKER_IMAGE}:${VERSION} ${BUILDDIR}/
+echo "Building ${DOCKER_IMAGE}:${DOCKER_TAG}..."
+docker buildx build -f $BUILDDIR/Dockerfile --no-cache --progress=plain --platform $DOCKER_PLATFORM --output=type=docker --tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${BUILDDIR}/
 
-if [ -n "$DOCKER_TAG" ]; then
-    echo "Tagging ${DOCKER_IMAGE}:${VERSION} as ${DOCKER_IMAGE}:${DOCKER_TAG}"
-    docker tag ${DOCKER_IMAGE}:${VERSION} ${DOCKER_IMAGE}:${DOCKER_TAG}
-fi
+
 if [ -n "$OUTDIR" ]; then
-    TARFILE="${TARFILE_PREFIX}-${VERSION}-${ARCH}-${VARIANT}.tar"
-    echo "Exporting image ${DOCKER_IMAGE}:${VERSION} to $TARFILE..."
-    docker image save -o "$TARFILE" ${DOCKER_IMAGE}:${VERSION}
+    TARFILE="${TARFILE_PREFIX}-${DOCKER_TAG}-${ARCH}-${VARIANT}.tar"
+    echo "Exporting image ${DOCKER_IMAGE}:${DOCKER_TAG} to $TARFILE..."
+    docker image save -o "$TARFILE" ${DOCKER_IMAGE}:${DOCKER_TAG}
 fi
 if [ -n "$CLEAN" ]; then
     echo "Remove $BUILDDIR"
